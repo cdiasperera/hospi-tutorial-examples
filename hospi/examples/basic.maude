@@ -1,0 +1,155 @@
+load ../chan
+load ../cinni
+load ../chanset
+load ../hospi-syntax
+load ../hospi-semantics
+load ../hospi-types-syntax
+load ../hospi-types-funcs
+load ../hospi-types
+
+mod TEST is
+  protecting INT .
+  protecting HOSPI-SYNTAX .
+  protecting HOSPI-SEMANTICS .
+  protecting HOSPI-TYPES .
+
+endm
+
+--- Transfer basic value
+***(
+  Observe here how when you define a session channel in a context, you need to
+  define _both_ endpoints in terms of their types, though technically 
+  speaking, this can be inferred.
+)
+
+red type-term(
+  nil,
+  (
+    ('x'{0} : ! bool . end),
+    (*('x'{0}) : ? bool . end)
+  ),
+  ('x'{0}< True > . nil) |
+  (*('x'{0})('z') . nil)
+) .
+
+***(
+ However, observe if we send a value down a shared channel, we only need to
+ type a single channel end. Indeed, it doesn't matter which end. We could've
+ equally typed ('x'(0) : ? bool . end)
+
+ Note: If you had written 'x'{0} it would have been ill-typed.
+)
+red type-term(
+  (
+    ('x'(0) : ! bool . end)
+  ),
+  nil,
+  ('x'(0)< True > . nil) |
+  ('x'(0)('z') . nil)
+) .
+
+--- Defining a lambda value to pass
+***(
+  This is a relatively strange typing. It seems to suggest that you can
+  change a linear type into an unrestricted type.
+
+  In reality, what it's saying is that this *x can get a lambda from any
+  thread but 'x' can only send out lambdas created in the same thread.
+)
+red type-term(
+  nil,
+  (
+    ('x'{0} : ! lin proc(! bool . end , <>) . end),
+    (*('x'{0}) : ? un proc(! bool . end , <>) . end)
+    
+  ),
+  ('x'{0}< lambda('y' : ! bool . end ) . 'y'{0}< True > . nil > . nil) | 
+  (*('x'{0})('z') . nil)
+) .
+
+--- Using the lambda
+***(
+  TODO: Why did we have to go back to lin? 
+  Since *'x' is a takes in a linear lambda process, 'z' becomes a linear
+  channel, meaning that it must be consume. If the application to 'P' by
+  'z' was left out, we would have an invalid type.
+)
+red type-term(
+  nil,
+  (
+    ('x'{0} : ! lin proc(! bool . end , <>) . end),
+    (*('x'{0}) : ? lin proc(! bool . end , <>) . end),
+    ('z'{0} : ! bool . end)
+  ),
+  ('x'{0}< lambda('y' : ! bool . end ) . 'y'{0}< True > . nil > . nil) | 
+  (*('x'{0})('P') . ('P'{0}{'z'{0}}))
+) .
+
+--- Restricted channels
+***(
+  The use of restricted channels makes typing a bit simpler
+)
+red type-term(
+  nil,
+  nil,
+  new ['x' : ! bool . end] (
+    ('x'{0}< True > . nil) |
+    (*('x'{0})('z') . nil)
+  )
+) .
+
+***(
+  Observe that since we are using a a restriction (which essentially will
+  bring 'x' into the session context with 'x' being the stated type and *x
+  being the dual), we _must_ consume and use the lambda.
+)
+red type-term(
+  nil,
+  ('z'{0} : ! bool . end),
+  new ['x' : ! lin proc(! bool . end, <>) . end] (
+    ('x'{0}< lambda('y' : ! bool . end ) . 'y'{0}< True > . nil > . nil) | 
+    (*('x'{0})('P') . ('P'{0}{'z'{0}}))
+  )
+) .
+
+--- Differentiate between shared / linear / session environments
+
+--- Promotion
+***(
+  TODO: After Juan replies
+)
+--- Replicating processes
+***(
+  To achieve replicating processes in hospi, we need to use \mu, which is 
+  u [] in the Maude implementation.
+)
+red type-term(
+  nil,
+  (
+    ('x'{0} : u['X'] ? bool . var('X')),
+    (*('x'{0}) : ! bool . end)
+  ),
+  (u ['X' : 'x'{0}] . 'x'{0}('z') . rec('X')) |
+  *('x'{0})< True > . nil
+) .
+
+--- Branching
+red type-term(
+  nil,
+  (
+    ('x'{0} : &{
+      ('l1' : end) ;
+      ('l2' : end)
+    } ),
+    (*('x'{0}) : +{
+      ('l1' : end) ;
+      ('l2' : end)
+    } ),
+    ('y'{0} : ! bool . end )
+  ),
+  ('x'{0} >> {
+    ('l1' : 'y'{0}< True > . nil) ;
+    ('l2' : 'y'{0}< False > . nil)
+  }) |
+  (*('x'{0}) << 'l1' . nil) 
+) .

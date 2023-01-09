@@ -1,0 +1,59 @@
+mod HOSPI-TYPES-SYNTAX is
+   inc CINNI .
+   protecting CHANSET .
+   inc HOSPI-SYNTAX .
+
+   sorts Type SessionType SharedType LinearType Context SessionContext TupleTypeContext ChoiceT ChoiceTset SessionContextPair .
+   subsort SessionType < LinearType < Type .
+   subsort SharedType < Type .
+   subsort ChoiceT < ChoiceTset .
+   subsort SessionContext < Context .
+
+   ****************************************************************
+   ***                 Types Syntax
+   ****************************************************************
+   op ?_._ : Type SessionType -> SessionType .
+   op !_._ : Type SessionType -> SessionType .
+   op +{_} : ChoiceTset -> SessionType .
+   op &{_} : ChoiceTset -> SessionType .
+   op u [_] _ : Qid SessionType -> SessionType .
+   op var : Qid -> SessionType .
+   op end : -> SessionType .
+   op lin proc(_,_) : Type Type -> LinearType .
+   op un proc(_,_) : Type Type -> SharedType .
+   op [_]: Type -> SharedType .
+   op <> : -> Type .
+   op _;_ : SessionContext SessionContext -> SessionContextPair .
+   --- only for testing
+   op bool : -> SharedType .
+   op Ss : -> SharedType .
+   op NNat : -> SharedType .
+   op Quote : -> SharedType .
+
+   op _:_ : Qid SessionType -> ChoiceT [ctor] . 
+   op empty : -> ChoiceTset [ctor] .
+   op _;_ : ChoiceTset ChoiceTset -> ChoiceTset [ctor assoc comm id: empty] .
+   op _in_  : ChoiceT ChoiceTset -> Bool .
+   op _subset_ : ChoiceTset ChoiceTset -> Bool .
+
+   ops nil invalid-context : -> Context .
+   op nil : -> SessionContext .
+   op _:_ : SharedName SharedType -> Context [ctor] .
+   op _:_ : Variable SharedType -> Context [ctor] .
+   op _:_ : Variable SessionContext -> Context [ctor] .
+   op _,_ : Context Context -> Context [ctor assoc comm id: nil] .
+   op _:_ : SessionName LinearType -> SessionContext [ctor] .
+   op _:_ : Variable LinearType -> SessionContext [ctor] .
+   op _,_ : SessionContext SessionContext -> SessionContext [ctor assoc comm id: nil] .
+
+   op new[_:_]_  : Qid Type Trm -> Trm [ctor prec 28] .
+   op u[_:_]._ : Qid Chanset Trm -> Trm [ctor prec 30] .
+   op lambda(_:_)._ : Qid Type Trm -> Value [ctor prec 7] . 
+   op ill-typed-process : -> Trm .
+
+   op ill-typed : -> TupleTypeContext .
+   op [__] : SessionContext Type -> TupleTypeContext .
+
+   var SC : SessionContext .
+   var u : SessionName .
+endm

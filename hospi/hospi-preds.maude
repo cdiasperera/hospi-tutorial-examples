@@ -1,0 +1,35 @@
+mod HOSPI-PREDS-TYPES is
+  protecting HOSPI-SYNTAX .
+  protecting HOSPI-SEMANTICS .
+  including SATISFACTION .
+  
+  subsort Trm < State .
+
+  vars a b : Chan .
+  vars P Q R : Trm .
+  var  x y z : Qid .
+  var  V : Value .
+  var  Pr : Prop .
+  var  nl : QidSet .
+
+  ops in out : Chan Trm -> Bool .
+  ops sync wait : Chan Trm -> Bool .
+  op wait-aux : QidSet Trm -> Bool .
+
+  eq in(a, a(x) . P | R) = true .
+  eq in(a, P) = false [owise] . 
+  eq out(a, a < V > . P | R) = true .
+  eq out(a, P) = false [owise] .
+  eq sync(a, P) = in(a, P) and out(*(a), P) .
+  eq wait(a, P) = (in(a, P) or out(*(a), P)) and not sync(a, P) .
+  eq wait-aux(mt, P) = false .
+  eq wait-aux(x nl, P) = wait(x{0}, P) or wait(*(x{0}), P) or wait-aux(nl, P) .
+
+  ops pwait psync : Chan -> Prop [ctor] .
+
+  eq new* [x nl] P |= pwait(x{0}) = wait(x{0}, P) or wait(*(x{0}), P) .
+  eq new* [x nl] P |= pwait(x(0)) = wait(x(0), P) .
+  eq new* [x nl] P |= psync(x{0}) = sync(x{0}, P) or sync(*(x{0}), P) .
+  eq new* [x nl] P |= psync(x(0)) = sync(x(0), P) .
+  
+endm

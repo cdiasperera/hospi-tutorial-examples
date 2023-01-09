@@ -1,0 +1,119 @@
+mod HOSPI-TYPES-FUNCS is
+   inc CINNI .
+   protecting CHANSET .
+   inc HOSPI-TYPES-SYNTAX .
+
+   vars x y : Qid .
+   vars S S' : SessionType .
+   vars L : LinearType .
+   vars n n' : SessionName .
+   vars T T' T1 T1' T2 T2' : Type .
+   vars CHT CHT' : ChoiceTset .
+   vars V V' : Value .
+   var  C : Context .
+   vars SC SC' SC1 SC2 : SessionContext .
+   var  CX : Chanset .
+   var  CP : SessionContextPair .
+
+   op replace : Qid Type Type -> Type .
+   eq replace(x, S, end) = end .
+   eq replace(x, S, bool) = bool .
+   eq replace(x, S, var(x)) = S .
+   eq replace(x, S, ? T . S') = ? replace(x, S, T) . replace(x, S, S') .
+   eq replace(x, S, ! T . S') = ! replace(x, S, T) . replace(x, S, S') .
+   eq replace(x, S, u [y] S') = u [y] replace(x, S, S') .
+   eq replace(x, S, + { CHT }) = + { replace-aux(x, S, CHT) } .
+   eq replace(x, S, & { CHT }) = & { replace-aux(x, S, CHT) } .
+   eq replace(x, S, S') = S' [owise] .
+   op replace-aux : Qid Type ChoiceTset -> ChoiceTset .
+   eq replace-aux(x, S, empty) = empty .
+   eq replace-aux(x, S, (y : S') ; CHT) = (y : replace(x, S, S')) ; replace-aux(x, S, CHT) .
+
+   --- unfold(U): this operator expands a recursive type U by a step and replaces the type variable ocurrence
+   ---            for the corresponding u [x] U expression
+   op unfold : Type -> Type .
+   eq unfold(u [x] end) = end .
+   eq unfold(u [x] ? T . S') = ? replace(x, u [x] ? T . S', T) . replace(x, u [x] ? T . S', S') .
+   eq unfold(u [x] ! T . S') = ! replace(x, u [x] ! T . S', T) . replace(x, u [x] ! T . S', S') .
+   eq unfold(u [x] + { CHT }) = + { replace-aux(x, u [x] + { CHT }, CHT) } .
+   eq unfold(u [x] & { CHT }) = & { replace-aux(x, u [x] & { CHT }, CHT) } .
+   eq unfold(T) = T [owise] .
+
+   --- context difference
+   op _inT_ : SessionName Context -> Bool .
+   eq n inT nil = false .
+   eq n inT (C , n : S) = true .
+   eq n inT (C , n' : S) = (n == n') or (n inT C) .
+
+   op _/_ : Context Value -> Context .
+   eq ((V : end), C) / V = C .
+   ceq C / V = C if (V inT C) == false .
+   eq C / V = invalid-context [owise] .
+
+   op dual : SessionType -> SessionType .
+   op dual-aux : ChoiceTset -> ChoiceTset .
+   eq dual(end) = end .
+   eq dual(var(x)) = var(x) .
+   eq dual(? T . S) = ! T . dual(S) .
+   eq dual(! T . S) = ? T . dual(S) .
+   eq dual(u [x] S) = u [x] dual(S) .
+   eq dual(+{ CHT }) = &{ dual-aux(CHT) } .
+   eq dual(&{ CHT }) = +{ dual-aux(CHT) } .
+   eq dual-aux(empty) = empty .
+   eq dual-aux((x : S) ; CHT) = (x : dual(S)) ; dual-aux(CHT) .
+
+   op recursive : Type -> Bool .
+   op equal : Type Type -> Bool .
+   op equal-aux : ChoiceTset ChoiceTset -> Bool .
+   op consumed : SessionContext -> Bool .
+   op get-context : Chanset SessionContext -> SessionContext .
+   op equal-context : SessionContext SessionContext -> Bool .
+   op context-not-end : SessionContext -> Bool .
+   op intersection : SessionContext SessionContext -> SessionContext .
+
+   eq recursive(u [x] T) = true .
+   eq recursive(T) = false [owise] .
+
+   --- it would be possible (maybe) not to check completely both types
+   eq equal(T, T) = true .
+   eq equal([T], [T']) = equal(T, T') .
+   eq equal(lin proc(T1, T1'), lin proc(T2, T2')) = equal(T1, T2) and equal(T1', T2') .
+   eq equal(un proc(T1, T1'), un proc(T2, T2')) = equal(T1, T2) and equal(T1', T2') .
+   eq equal(var(x), var(y)) = true .
+   eq equal(? T1 . T1', ? T2 . T2' ) = equal(T1, T2) and equal(T1', T2') .
+   eq equal(! T1 . T1', ! T2 . T2' ) = equal(T1, T2) and equal(T1', T2') .
+   eq equal(+ { CHT }, + { CHT' }) = equal-aux(CHT, CHT') .
+   eq equal(& { CHT }, & { CHT' }) = equal-aux(CHT, CHT') .
+   eq equal(u [x] T1, u [y] T2) = equal(T1, T2) .
+   ceq equal(u [x] T1, T2 ) = true if not recursive(T2) .
+   ceq equal(T1, u [x] T2 ) = true if not recursive(T1) .
+   eq equal(T1, T2) = false [owise] .
+   eq equal-aux(empty, empty) = true .
+   eq equal-aux((x : T1) ; CHT, (x : T2) ; CHT') = equal(T1, T2) and equal-aux(CHT, CHT') .
+   eq equal-aux(CHT, CHT') = false [owise] .
+
+   eq consumed(nil) = true .
+   eq consumed((V : end), SC) = consumed(SC) .
+   eq consumed(SC) = false [owise] .
+
+   eq get-context(mt, SC) = nil .
+   eq get-context(n CX, ((n : S), SC)) = (n : S), get-context(CX, SC) .
+
+   ceq equal-context(SC, SC) = true if context-not-end(SC) .
+   ceq equal-context(SC, SC') = false if SC =/= SC' and context-not-end(SC) and context-not-end(SC') .
+   eq equal-context(((n : end), SC), SC') = equal-context(SC, SC') .
+   eq equal-context(SC, ((n : end), SC')) = equal-context(SC, SC') .
+   eq context-not-end((n : end), SC) = false .
+   eq context-not-end(SC) = true [owise] .
+   eq intersection(nil, SC') = nil .
+   eq intersection(SC, nil) = nil .
+   eq intersection(((n : S), SC), ((n : S), SC')) = (n : S), intersection(SC, SC') .
+   eq intersection(SC, SC') = nil [owise] .
+   
+   op split : SessionContext SessionContextPair -> SessionContextPair .
+   eq split(nil, CP) = CP .
+   eq split(((n : lin proc(T, <>)), SC), SC1 ; SC2) = split(SC, ((n : lin proc(T, <>)), SC1) ; SC2) .
+   eq split(((val(x) : lin proc(T, <>)), SC), SC1 ; SC2) = split(SC, ((val(x) : lin proc(T, <>)), SC1) ; SC2) .
+   eq split(SC, SC1 ; SC2) = SC1 ; (SC, SC2) [owise] .
+
+endm

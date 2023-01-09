@@ -1,0 +1,38 @@
+load spi-syntax
+load spi-semantics
+load model-checker
+mod APIPREDS-TYPES is
+  protecting APISYNTAX-SESSION .
+  protecting APISEMANTICS-SESSION .
+  including SATISFACTION .
+  
+  subsort Trm < State .
+
+  vars a b : Chan .
+  vars P Q R : Trm .
+  var  x y z : Qid .
+  var  v : Value .
+  var  Pr : Prop .
+  var  nl : QidSet .
+
+  ops in out in* : Chan Trm -> Bool .
+  ops sync wait : Chan Chan Trm -> Bool .
+  op wait-aux : QidSet Trm -> Bool .
+
+  eq in(a, lin a(x) . P | R) = true .
+  eq in(a, P) = false [owise] .
+  eq in*(a, un a(x) . P | R) = true .
+  eq in*(a, P) = false [owise] . 
+  eq out(a, a < v > . P | R) = true .
+  eq out(a, P) = false [owise] .
+  eq sync(a, b, P) = (in(a, P) or in*(a, P)) and out(b, P) .
+  eq wait(a, b, P) = (in(a, P) or out(b, P)) and not sync(a, b, P) .
+  eq wait-aux(mt, P) = false .
+  eq wait-aux((x y) nl, P) = wait(x{0}, y{0}, P) or wait(y{0}, x{0}, P) or wait-aux(nl, P) .
+
+  ops pwait psync : Chan Chan -> Prop [ctor] .
+
+  eq new* [(x y) nl] P |= pwait(x{0}, y{0}) = wait(x{0}, y{0}, P) or wait(y{0}, x{0}, P) .
+  eq new* [(x y) nl] P |= psync(x{0}, y{0}) = sync(x{0}, y{0}, P) or sync(y{0}, x{0}, P) .
+  
+endm

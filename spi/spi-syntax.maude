@@ -1,0 +1,75 @@
+load cinni
+load chanset
+fmod APISYNTAX-SESSION is
+   inc CINNI .
+   inc CHANSET .
+
+   ***********************************************************
+   ***      Syntax
+   ***********************************************************
+   sorts Trm Guard Qualifier .
+   sort Choice Choiceset .
+   subsort Choice < Choiceset .
+
+   ops lin un : -> Qualifier [ctor] .
+   ops True False : -> Value [ctor] .
+   op  __(_) : Qualifier Chan Qid -> Guard [ctor prec 5] .
+   op _<_> : Chan Value -> Guard [ctor prec 6] .
+
+   op nil : -> Trm [ctor] .
+   op new[__]_ : Qid Qid Trm -> Trm [ctor prec 10] .
+   op _|_  :  Trm Trm -> Trm [ctor assoc comm prec 12 id: nil] .
+   op if_then_else_fi : Value Trm Trm -> Trm [ctor prec 8] .
+   op _ << _ . _ : Chan Qid Trm -> Trm [ctor prec 15] .
+   op _ >> {_} : Chan Choiceset -> Trm [ctor prec 17] .
+   op _._ : Guard Trm -> Trm [ctor prec 7] .
+
+   op _:_ : Qid Trm -> Choice . 
+   op empty : -> Choiceset [ctor] .
+   op __ : Choiceset Choiceset -> Choiceset [ctor assoc comm id: empty] .
+   op _in_  : Choice Choiceset -> Bool .
+   op _subset_ : Choiceset Choiceset -> Bool .
+
+   var S : Subst .
+   vars a b : Chan .
+   vars P Q : Trm .
+   vars x y : Qid .
+   var v : Value .
+   var q : Qualifier .
+   var CH : Choiceset .
+
+   ***********************************************************
+   ***         Substitution rules
+   ***********************************************************
+   op  __ :  Subst Trm -> Trm [prec 3] .
+   op  subst-aux : Subst Choiceset -> Choiceset .
+   eq  S nil = nil .
+   eq  S (new [x y] P) = new [x y] ([lift x S] [lift y S] P) .
+   eq  S (q a(y) . P ) = q (S a)(y) . ([lift y S] P) .
+   eq  S (a < b > . P) = (S a) < (S b) > . (S P) .
+   ceq S (a < v > . P) = (S a) < v > . (S P) if v == True or v == False .
+   ceq S (if v then P else Q fi) = if v then (S P) else (S Q) fi if v == True or v == False .
+   eq  S (a >> {CH}) = (S a) >> { subst-aux(S, CH) } .
+   eq  S (a << x . P) = (S a) << x . (S P) .
+   eq  S (P | Q) = (S P) | (S Q) .
+   eq  subst-aux(S, empty) = empty .
+   eq  subst-aux(S, (x : P) CH) = (x : (S P)) subst-aux(S, CH) .
+
+   
+   ***********************************************************
+   ***          Free names in a term
+   ***********************************************************
+   op  freenames : Trm -> Chanset .
+   op  freenames-aux : Choiceset -> Chanset .
+   eq  freenames(nil) = mt .
+   eq  freenames(new [x y] P) = down(x, down(y, freenames(P))) .
+   eq  freenames(q a(y) . P) = a down(y, freenames(P)) .
+   ceq freenames(P | Q) = freenames(P) freenames(Q) if P =/= nil and Q =/= nil .
+   eq  freenames(a < b > . P) = a b freenames(P) .
+   ceq freenames(a < v > . P) = a freenames(P) if v == True or v == False .
+   ceq freenames(if v then P else Q fi) = freenames(P) freenames(Q) if v == True or v == False .
+   eq  freenames(a >> {CH}) = a freenames-aux(CH) .
+   eq  freenames(a << x . P) = a freenames(P) .
+   eq  freenames-aux(empty) = mt .
+   eq  freenames-aux((x : P) CH) = freenames(P) freenames-aux(CH) .
+endfm

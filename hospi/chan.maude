@@ -1,0 +1,31 @@
+************************************
+***  Channels and operations on them
+************************************
+
+fmod CHAN is 
+  protecting NAT .
+  protecting QID .
+
+  sort Chan Value SessionName SharedName Variable .
+  subsort Nat < Value .
+  subsort Chan < Value .
+  subsort SessionName < Chan .
+  subsort SharedName < Chan .
+  subsort Variable < Value .
+  
+  op _`{_`}  :  Qid Nat -> SessionName [ctor prec 1] .
+  op _(_)  :  Qid Nat -> SharedName [ctor prec 1] .
+  --- op * : Chan -> Chan [ctor] .
+  op * : SharedName -> SharedName [ctor] .
+  op * : SessionName -> SessionName [ctor] .
+  ops True False Room : -> Value .
+  op val : Qid -> Variable .
+
+  vars n m : Nat .
+  vars a b : Qid .
+  var sh : SessionName .
+  var ch : SharedName .
+  eq *(*(sh)) = sh .
+  eq *(ch) = ch .
+endfm
+

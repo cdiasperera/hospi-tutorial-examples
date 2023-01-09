@@ -1,0 +1,83 @@
+fmod HOSPI-SYNTAX is
+   inc CINNI .
+   inc CHANSET .
+
+   ***********************************************************
+   ***      Syntax
+   ***********************************************************
+   sorts Trm Guard Choice Choiceset .
+   subsort Choice < Choiceset .
+
+   op lambda(_)._ : Qid Trm -> Value [ctor prec 5] .
+   op _<_> : Chan Value -> Guard [ctor prec 6] .
+   op _(_) : Chan Qid -> Guard [ctor prec 4] .
+
+   op nil : -> Trm [ctor] .
+   op new[_]_ : Qid Trm -> Trm [ctor prec 10] .
+   op _{_} : Value Chan -> Trm [ctor prec 18] .
+   op rec : Qid -> Trm [ctor] .
+   op u[_]._ : Qid Trm -> Trm [ctor prec 20] .
+   op _|_  :  Trm Trm -> Trm [ctor assoc comm prec 12 id: nil] .
+   op _ << _ . _ : Chan Qid Trm -> Trm [ctor prec 15] .
+   op _ >> {_} : Chan Choiceset -> Trm [ctor prec 17] .
+   op _._ : Guard Trm -> Trm [ctor prec 7] .
+
+   op _:_ : Qid Trm -> Choice . 
+   op empty : -> Choiceset [ctor] .
+   op _;_ : Choiceset Choiceset -> Choiceset [ctor assoc comm id: empty] .
+   op _in_  : Choice Choiceset -> Bool .
+
+   var S : Subst .
+   vars P Q : Trm .
+   vars x y : Qid .
+   var a b : Chan .
+   var V : Value .
+   var CH : Choiceset .
+
+   ***********************************************************
+   ***         Substitution rules
+   ***********************************************************
+   op  __ :  Subst Trm -> Trm [prec 3] .
+   op  subst-aux : Subst Choiceset -> Choiceset .
+   op  apply-subst : Subst Value -> Value .
+   eq  S nil = nil .
+   eq  S (new [x] P) = new [x] ([lift x S] P) .
+   eq  S (a (x) . P) = (S a)(x) . ([lift x S] P) .
+   --- eq  S (a < b > . P) = (S a) < (S b) > . (S P) .
+   eq  S (a < V > . P) = (S a) < apply-subst(S, V) > . (S P) .
+   eq  S (a >> {CH}) = (S a) >> { subst-aux(S, CH) } .
+   eq  S (a << x . P) = (S a) << x . (S P) .
+   eq  S rec(x) = rec(x) .
+   eq  S (u[x] . P) = u[x] . ([lift x S] P) .
+   eq  S (V {a}) = apply-subst(S, V) {(S a)} .
+   eq  S (P | Q) = (S P) | (S Q) .
+   eq  subst-aux(S, empty) = empty .
+   eq  subst-aux(S, (x : P) ; CH) = (x : (S P)) ; subst-aux(S, CH) .
+   eq  apply-subst(S, a) = (S a) .
+   eq  apply-subst(S, lambda(x) . P) = lambda(x) . ([lift x S] P) .
+   eq  apply-subst(S, val(x)) = val(x) .
+   eq  apply-subst(S, V) = V [owise] .
+   
+   ***********************************************************
+   ***          Free names in a term
+   ***********************************************************
+   op  freevars : Trm -> Chanset .
+   op  freevars-aux : Choiceset -> Chanset .
+   op  freevars-value : Value -> Chanset .
+   eq  freevars(nil) = mt .
+   eq  freevars(new [x] P) = down(x, freevars(P)) .
+   eq  freevars(a (x) . P) = a down(x, freevars(P)) .
+   eq  freevars(a < b > . P) = a b freevars(P) .
+   eq  freevars(a < V > . P) = a freevars(P) . --- if not isChannel(V) .
+   eq  freevars(a >> {CH}) = a freevars-aux(CH) .
+   eq  freevars(a << x . P) = a freevars(P) .
+   eq  freevars(V{a}) = a freevars-value(V) .
+   eq  freevars(rec(x)) = x{0} .
+   eq  freevars(u[x] . P) = down(x, freevars(P)) .
+   ceq freevars(P | Q) = freevars(P) freevars(Q) if P =/= nil and Q =/= nil .
+   eq  freevars-aux(empty) = mt .
+   eq  freevars-aux((x : P) ; CH) = freevars(P) freevars-aux(CH) .
+   eq  freevars-value(a) = a .
+   eq  freevars-value(lambda(x) . P) = down(x, freevars(P)) .
+   eq  freevars-value(val(x)) = x{0} .
+endfm

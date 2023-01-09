@@ -1,0 +1,81 @@
+mod HOSPI-SEMANTICS is
+  inc HOSPI-SYNTAX .
+  inc CHANSET .
+  inc INT .
+
+  sorts QidSet .
+  subsort Qid < QidSet .
+
+  vars N M : Nat .
+  vars x y z w : Qid .
+  vars a b : Chan .
+  vars P P' Q R : Trm .
+  var  V : Value .
+  var CH : Choiceset .
+  var nl nl' : QidSet .
+  var G : Guard .
+
+  op mt : -> QidSet .
+  op __ : QidSet QidSet -> QidSet [ctor comm assoc id: mt] .
+  op new* [_] _ : QidSet Trm -> Trm [ctor] .
+
+  op flatten : Trm -> Trm .
+  op unfold : Trm -> Trm .
+  op replace : Qid Trm Trm -> Trm .
+  op replace-aux : Qid Trm Choiceset -> Choiceset .
+  eq flatten(new [x] P) = flatten(new* [x] P) .
+  eq flatten(new* [nl] new [x] P) = flatten(new* [nl x] P) .
+  eq flatten(new* [nl] new* [nl'] P) = flatten(new* [nl nl'] P) .
+  eq flatten(P) = P [owise] .
+  
+  eq unfold(u[x] . P) = replace(x, u[x] . P, P) .
+  eq unfold(P) = P [owise] .
+  eq replace(x, P, nil) = nil .
+  eq replace(x, P, new[y] Q) = new[y] replace(x, P, Q) .
+  eq replace(x, P, rec(x)) = P .
+  eq replace(x, P, (lambda(y) . Q) {a}) = (lambda(y) . replace(x, P, Q)) {a} .
+  eq replace(x, P, G . Q) = G . replace(x, P, Q) .
+  eq replace(x, P, a >> {CH}) = a >> { replace-aux(x, P, CH) } .
+  eq replace(x, P, a << x . Q) = a << x . replace(x, P, Q) .
+  eq replace(x, P, u[y] . Q) = u[y] . replace(x, P, Q) .
+  eq replace(x, P, Q | R) = replace(x, P, Q) | replace(x, P, R) .
+  eq replace(x, P, Q) = Q [owise] .
+  eq replace-aux(x, P, empty) = empty .
+  eq replace-aux(x, P, (y : Q) ; CH) = (y : replace(x, P, Q)) ; replace-aux(x, P, CH) .
+
+  ***************************************************************************
+  ***   Explicit Congruence Rules
+  ***************************************************************************
+  eq new[x] nil = nil .
+  ceq P | new[x] Q = new [x] (Q | [shiftup x] P) if P =/= nil /\ Q =/= nil /\ x{0} in freevars(P) .
+  eq new* [nl] nil = nil .
+  
+  ****************************************************************************
+  ***    Reduction Semantics
+  ****************************************************************************
+
+  crl [FLAT] : P => P' if P' := flatten(P) /\ P =/= P' .    
+
+  rl [SESS-COM1] : new* [x nl] (x{N} < V > . P | *(x{N}) (z) . Q | R) =>
+                   new* [x nl] (P | [z := V] Q | R) .
+  
+  rl [SESS-COM2] : new* [x nl] (*(x{N}) < V > . P | x{N} (z) . Q | R) =>
+                    new* [x nl] (P | [z := V] Q | R) .
+
+  rl [SH-COM] : new* [x nl] (x(N) < V > . P | x(N) (z) . Q | R) =>
+                    new* [x nl] (P | [z := V] Q | R) .  
+
+  rl [SESS-SEL1] : new* [x nl] ( (x{N} << w . P) | (*(x{N}) >> { (w : Q) ; CH }) | R) =>
+                   new* [x nl] (P | Q | R) .
+
+  rl [SESS-SEL2] : new* [x nl] ( (*(x{N}) << w . P) | (x{N} >> { (w : Q) ; CH }) | R) =>
+                   new* [x nl] (P | Q | R) .
+
+  rl [SH-SEL] : new* [x nl] ( (x(N) << w . P) | (x(N) >> { (w : Q) ; CH }) | R) =>
+                new* [x nl] (P | Q | R) .
+
+  rl [APP] : new* [nl] (((lambda(x) . P) {a}) | Q) => new* [nl] ([x := a] P | Q) .
+
+  rl [REC] : new* [nl] ((u[x] . P) | Q) => new* [nl] (unfold(u[x] . P) | Q) .
+
+endm

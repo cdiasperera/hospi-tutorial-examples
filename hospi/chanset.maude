@@ -1,0 +1,67 @@
+ ********************
+ *** Set of channels
+ ********************
+
+fmod CHANSET is
+  including CINNI .
+  protecting STRING .
+  
+  sort Chanset .
+  subsort Chan < Chanset .
+
+  op mt : -> Chanset .
+  op __ : Chanset Chanset -> Chanset [assoc id: mt] .
+  op _in_  : Chan Chanset -> Bool .
+  op _subset_ : Chanset Chanset -> Bool .
+  op __ : Subst Chanset -> Chanset .
+  op remove : Chanset Chan -> Chanset .
+  
+  var  N : Nat .
+  vars I1 I2 : Qid .
+  var  ST : String .
+  var  CX CY : Chan .
+  var  E  E1 E2 :  Chanset .
+  var  S : Subst .
+
+  *********************************
+  *** eliminate duplicate elements
+  *********************************
+  eq CX CX E = CX E .
+
+  ******************
+  *** Set mebership
+  ******************
+  eq  CX in mt = false .
+  eq  CX in CY E = CX == CY or CX in E .
+
+  ********************
+  *** Subset relation
+  ********************
+  eq  mt subset E = true .
+  eq  CX E1 subset E2 = CX in E2 and E1 subset E2 .
+
+  ***********************
+  *** Substitution
+  ***********************
+  eq S mt = mt .
+  eq S (CX E) = (S CX) (S E) .
+
+  eq remove(mt, CX) = mt .
+  eq remove(CX E, CX) = E .
+  eq remove(E, CX) = E [owise] .
+  
+  *****************************************************
+  *** Reduces the index of channels with the given qid 
+  *** as name, removing the channel if its index is 0 
+  *****************************************************
+  op  down  :  Qid Chanset -> Chanset .
+  eq  down(I1, mt) = mt .
+  eq  down(I1, I2{0} E ) = if I1 == I2 then down(I1 , E) else I2{0} down (I1 , E) fi .
+  eq  down(I1, I2{s(N)} E) = if I1 == I2 then I2 {N} down(I1, E) else I2{s(N)} down(I1, E) fi .
+  eq  down(I1, *(I2{0}) E ) = if I1 == I2 then down(I1, E) else *(I2{0}) down (I1 , E) fi .
+  eq  down(I1, *(I2{s(N)}) E) = if I1 == I2 then *(I2 {N}) down(I1, E) else *(I2{s(N)}) down(I1, E) fi .
+  eq  down(I1, I2(0) E ) = if I1 == I2 then down(I1 , E) else I2(0) down (I1 , E) fi .
+  eq  down(I1, I2(s(N)) E) = if I1 == I2 then I2 (N) down(I1, E) else I2(s(N)) down(I1, E) fi .
+  eq  down(I1, *(I2(0)) E ) = if I1 == I2 then down(I1, E) else *(I2(0)) down (I1 , E) fi .
+  eq  down(I1, *(I2(s(N))) E) = if I1 == I2 then *(I2 (N)) down(I1, E) else *(I2(s(N))) down(I1, E) fi .
+endfm

@@ -1,0 +1,26 @@
+  ************************************
+  ***  Channels and operations on them
+  ************************************
+
+  fmod CHAN is 
+    protecting NAT .
+    protecting QID .
+
+    sort Chan Value .
+    subsort Chan < Value .
+    
+    op _`{_`}  :  Qid Nat -> Chan [ctor prec 1] .
+    op flag : -> Chan .
+
+    op swap  :  Qid Nat Chan -> Chan .
+
+    vars n m :  Nat .
+    vars a b  :  Qid .
+
+    eq  swap(a , m , b{n}) = if a{m} == b{n} then a{s(m)}
+			     else if a{s(m)} == b{n} then a{m} 
+				  else b{n} fi
+			     fi .
+
+  endfm
+

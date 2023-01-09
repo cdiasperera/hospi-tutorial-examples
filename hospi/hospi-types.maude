@@ -1,0 +1,138 @@
+mod HOSPI-TYPES is
+   inc CINNI .
+   protecting CHANSET .
+   inc HOSPI-TYPES-FUNCS .
+   sort TupleTypeContextSet .
+   subsort TupleTypeContext < TupleTypeContextSet .
+
+   var C : Context .
+   vars SC SC' SC1 SC2 SC3 : SessionContext .
+   vars S S' : SessionType .
+   var L : LinearType .
+   var U : SharedType .
+   vars T T' : Type .
+   vars P Q : Trm .
+   vars x y : Qid .
+   var CX : Chanset .
+   var u : SessionName .
+   var n : SharedName .
+   var a : Chan .
+   var CH : Choiceset .
+   var CHT : ChoiceTset .
+   var V : Value .
+   var TC : TupleTypeContext .
+   var I : Nat .
+
+   op type-value : Context SessionContext Value -> TupleTypeContext .
+   eq type-value(C, ((u : S), SC), u) = [SC unfold(S)] .                                                            --- [A-SESS]
+   eq type-value(C, ((u : L), SC), u) = [SC L] .                                                                    --- [A-SESS]
+   eq type-value(((n : [T]), C), SC, n) = [SC [unfold(T)]] .                                                        --- [A-SH]
+   eq type-value(((n : (un proc(T, T'))), C), SC, n) = [SC (un proc(T, T'))] .                                      --- [A-SH]
+   eq type-value(((val(x) : (un proc(T, T'))), C), SC, val(x)) = [SC (un proc(T, T'))] .                            --- [A-SH]
+   eq type-value(((val(x) : bool), C), SC, val(x)) = [SC bool] .
+   eq type-value(C, SC, True) = [SC bool] .
+   eq type-value(C, SC, False) = [SC bool] .
+   eq type-value(C, SC, I) = [SC NNat] .
+   eq type-value(C, SC, Room) = [SC Quote] .
+   eq type-value(C, ((val(x) : lin proc(T, T')), SC), val(x)) = [SC (lin proc(T, T'))] .                            --- [A-LVAR]
+   ceq type-value(C, SC, lambda(x : S) . P) = [(SC' / x{0}) (lin proc(S, <>))]
+                                          if [SC' <>] := type-term(C, (SC, (x{0} : S)) , P) .                       --- [A-ABSS]
+   ceq type-value(C, SC, lambda(x : U) . P) = [SC' (lin proc(U, <>))]
+                                          if [SC' <>] := type-term((C, (x(0) : U)), SC, P) .                        --- [A-ABS]
+   --- this rules is divergent!!!
+   --- ceq type-value(C, SC, V) = [SC' (un proc(T, <>))] if [SC' (lin proc(T, <>))] := type-value(C, SC, V) .       --- [A-PROM]
+   eq type-value(C, SC, V) = ill-typed [owise] .
+
+   --- check-branch(...) : this function verifies if each subprocess in a branching is well-typed
+   op check-branch : Context SessionContext SessionName Choiceset ChoiceTset -> TupleTypeContext .
+   op check-branch-aux : Context SessionContext SessionName Choiceset ChoiceTset TupleTypeContext -> TupleTypeContext .
+   ceq check-branch(C, SC, u, ((x : P) ; CH), ((x : S) ; CHT)) = check-branch-aux(C, SC, u, CH, CHT, [(SC' / u) <>]) 
+                                                                if [SC' <>] := type-term(C, (SC, (u : S)), P)  .
+   eq check-branch(C, SC, u, CH, CHT) = ill-typed [owise] .
+   eq check-branch-aux(C, SC, u, empty, empty, TC) = TC .
+   ceq check-branch-aux(C, SC, u, (x : P) ; CH, (x : S) ; CHT, [SC' T']) =
+                                             check-branch-aux(C, SC, u, CH, CHT, [intersection(SC', SC1) T'])
+                                             if [SC1 T'] := type-term(C, (SC, (u : S)), P) /\ equal-context(SC', SC1) .
+   eq check-branch-aux(C, SC, u, CH, CHT, TC) = ill-typed [owise] .
+
+   --- type-term(Ctx, SCtx, P) : this functions performs the algorithmic type checking on process P with respect
+   ---                     to a shared context Ctx and a linear context SCtx. It produces an instance of the sort TupleTypeContext
+   op type-term : Context SessionContext Trm -> TupleTypeContext .
+   
+   eq type-term(C, SC, nil) = [SC <>] .                                                                                --- [A-NIL]
+   --- eq type-term((C, (val(x) : SC')), (SC', SC), rec(x)) = [SC <>] .                                                --- [A-RVAR]
+   ceq type-term((C, (val(x) : SC')), (SC', SC), rec(x)) = [SC <>]
+                                          if SC1 ; SC2 := split(SC', nil ; nil) /\ SC1 == nil .                        --- [A-RVAR]
+   --- ceq type-term(C, SC, u[x : CX] . P) = type-term((C, val(x) : SC'), SC, P) if SC' := get-context(CX, SC) .       --- [A-REC] 
+   ceq type-term(C, SC, u[x : CX] . P) = type-term((C, val(x) : SC'), SC, P) 
+                              if SC' := get-context(CX, SC) /\ SC1 ; SC2 := split(SC', nil ; nil) /\ SC1 == nil .      --- [A-REC]
+   ceq type-term(C, SC, P | Q) = [SC2 <>] if P =/= nil /\ Q =/= nil /\ [SC1 <>] := type-term(C, SC, P) /\              --- [A-PAR]
+                                            [SC2 <>] := type-term(C, SC1, Q) .
+   ceq type-term(C, SC, new [x : U] P) = [SC' <>] 
+                                         if [SC' <>] := type-term((C, (x(0) : U)), SC, P) .                            --- [A-RES]
+   ceq type-term(C, SC, new [x : S] P) = [((SC' / x{0}) / *(x{0})) <>]
+                                         if [SC' <>] := type-term(C, (SC, (x{0} : S), (*(x{0}) : dual(S))), P) /\
+                                            ((SC' / x{0}) / *(x{0})) =/= invalid-context .                             --- [A-RESS]
+   ceq type-term(C, SC, V{a}) = [(SC', SC2) <>]
+                        if [SC1 (lin proc(T, <>))] := type-value(C, SC, V) /\ 
+                           SC2 ; SC3 := split(SC1, nil ; nil) /\ [SC' T] := type-value(C, SC3, a) .                    --- [A-APP]
+   ceq type-term(C, SC, V{a}) = [(SC', SC1) <>]
+                            if SC1 ; SC2 := split(SC, nil ; nil) /\
+                               [SC (un proc(T, <>))] := type-value(C, SC, V) /\ [SC' T] := type-value(C, SC2, a) .     --- [A-APP]
+   ceq type-term(C, SC, u < V > . P) = [(SC' / u) <>]
+                        if [SC1 (! T . S)] := type-value(C, SC, u) /\ [SC2 T'] := type-value(C, (SC1 , u : S) , V) /\ 
+                           [SC' <>] := type-term(C,(SC2), P) /\ equal(T, T') /\ (SC' / u) =/= invalid-context .        --- [A-SEND]
+   ceq type-term(C, SC, n < V > . P) = [SC' <>]
+                           if SC1 ; SC2 := split(SC, nil ; nil) /\ [SC [T]] := type-value(C, SC, n) /\
+                              [SC3 T'] := type-value(C, SC2, V) /\ [SC' <>] := type-term(C, (SC1, SC3), P) /\ 
+                              equal(T, T') .                                                                           --- [A-REQ]
+   ceq type-term(C, SC, u(y) . P) = [((SC' / u) / y{0}) <>]
+                              if [SC1 (? L . S)] := type-value(C, SC, u) /\
+                                 [SC' <>] := type-term(C, (SC1, (y{0} : L), (u : S)), P) /\
+                                 ((SC' / u) / y{0}) =/= invalid-context .                                              --- [A-RCV]
+   ceq type-term(C, SC, u(y) . P) = [(SC' / u) <>] 
+                              if [SC1 (? U . S)] := type-value(C, SC, u) /\
+                                 [SC' <>] := type-term((C, (y(0) : U)), (SC1, (u : S)), P) /\
+                                 (SC' / u) =/= invalid-context .                                                       --- [A-RCV]
+   ceq type-term(C, SC, n(y) . P) = [(SC' / 'y'{0}) <>]
+                              if [nil [S]] := type-value(C, nil, n) /\
+                                 [SC' <>] := type-term(C, (SC, (y{0} : S)), P) .                                       --- [A-ACC]
+   ceq type-term(C, SC, n(y) . P) = [SC' <>]
+                        if [SC [U]] := type-value(C, SC, n) /\ [SC' <>] := type-term((C, (y(0) : U)), SC, P) .         --- [A-ACC]
+   ceq type-term(C, SC, u >> { CH }) = check-branch(C, SC', u, CH, CHT)
+                              if [SC' (& { CHT })] := type-value(C, SC, u) /\ (SC' / u) =/= invalid-context .          --- [A-BRA]
+   ceq type-term(C, SC, u << x . P) =  [(SC' / u) <>]
+                                if [SC1 (+ { (x : S) ; CHT })] := type-value(C, SC, u) /\
+                                   [SC' <>] := type-term(C, (SC1, (u : S)), P) /\ (SC' / u) =/= invalid-context .      --- [A-SEL]
+   ceq type-term((C, (val(x) : (un proc(T, <>)))), SC, P) = [SC' <>]
+                                if [SC' <>] := type-term(C, (SC, (val(x) : (lin proc(T, <>)))), P) .                   --- [A-EPROM] 
+   eq type-term(C, SC, P) = ill-typed [owise] .
+
+   --- Checks if a closed process P is well-typed
+   op well-typed : Trm -> Bool .
+   ceq well-typed(P) = true if [SC <>] := type-term(nil, nil, P) /\ consumed(SC) .
+   eq well-typed(P) = false [owise] .
+
+   op  erase : Trm -> Trm .
+   op  erase-aux : Choiceset -> Choiceset .
+   op  erase-value : Value -> Value .
+   eq  erase(nil) = nil .
+   eq  erase(rec(x)) = rec(x) .
+   eq  erase(u[x : CX] . P) = u[x] . erase(P) .
+   eq  erase(u[x] . P) = u[x] . erase(P) .
+   eq  erase(V{a}) = erase-value(V){a} .
+   eq  erase(a < V > . P) = a < erase-value(V) > . erase(P) .
+   eq  erase(a(x) . P) = a(x) . erase(P) .
+   ceq erase(P | Q) = erase(P) | erase(Q) if P =/= nil and Q =/= nil .
+   eq  erase(a >> {CH}) = a >> { erase-aux(CH) } .
+   eq  erase(a << x . P) = a << x . erase(P) .
+   eq  erase(new [x : T] P) = new [x] erase(P) .
+   eq  erase(new [x] P) = new [x] erase(P) . 
+   eq  erase-aux(empty) = empty .
+   eq  erase-aux((x : P) ; CH) = (x : erase(P)) ; erase-aux(CH) . 
+   eq  erase-value(lambda (x : T) . P) = lambda (x) . erase(P) .
+   eq  erase-value(V) = V [owise] .
+
+   rl [TYPED] : new [x : T] P => if well-typed(new [x : T] P) then erase(new [x] P) else ill-typed-process fi .
+
+endm

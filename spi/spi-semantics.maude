@@ -1,0 +1,65 @@
+load spi-syntax
+mod APISEMANTICS-SESSION is
+  inc APISYNTAX-SESSION .
+  inc CHANSET .
+  inc INT .
+
+  sorts QidPair QidSet .
+  subsort QidPair < QidSet .
+
+  vars N M : Nat .
+  vars x y z w : Qid .
+  vars a b : Chan .
+  var  CS : Chanset .
+  vars P' Q' P Q R : Trm .
+  var  v : Value .
+  var q : Qualifier .
+  var CH : Choiceset .
+  var nl nl' : QidSet .
+
+  op __ : Qid Qid -> QidPair [ctor] .
+  op mt : -> QidSet .
+  op __ : QidSet QidSet -> QidSet [ctor comm assoc id: mt] .
+  op new* [_] _ : QidSet Trm -> Trm [ctor] .
+
+  op flatten : Trm -> Trm .
+
+  eq flatten(new [x y] P) = flatten(new* [x y] P) .
+  eq flatten(new* [nl] new [x y] P) = flatten(new* [nl x y] P) .
+  eq flatten(new* [nl] new* [nl'] P) = flatten(new* [nl nl'] P) .
+  eq flatten(P) = P [owise] .
+
+  ***************************************************************************
+  ***   Explicit Congruence Rules
+  ***************************************************************************
+  eq new[x y] nil = nil .
+  ceq P | new[x y] Q = new [x y] (Q | [shiftup x] [shiftup y] P)
+                       if P =/= nil /\ Q =/= nil /\ CS := freenames(P) /\ x{0} in CS and y{0} in CS .
+  ceq P | new[x y] Q = new [x y] (Q | [shiftup x] P)
+                       if P =/= nil /\ Q =/= nil /\ CS := freenames(P) /\ x{0} in CS and not y{0} in CS .
+  ceq P | new[x y] Q = new [x y] (Q | [shiftup y] P)
+                       if P =/= nil /\ Q =/= nil /\ CS := freenames(P) /\ not x{0} in CS and y{0} in CS .
+  ceq P | new[x y] Q = new [x y] (Q | P)
+                      if P =/= nil /\ Q =/= nil /\ CS := freenames(P) /\ not x{0} in CS /\ not y{0} in CS .
+  eq if True then P else Q fi = P .
+  eq if False then P else Q fi = Q .
+  eq new* [nl] nil = nil .
+  eq new* [(x y) nl] y{N} < v > . P | q x{N}(z) . Q | R = new* [(y x) nl] y{N} < v > . P | q x{N}(z) . Q | R .
+  eq new* [(x y) nl] (y{N} << w . P) | (x{N} >> { CH }) | R = new* [(y x) nl] (y{N} << w . P) | (x{N} >> { CH }) | R .
+  
+  ****************************************************************************
+  ***    Reduction Semantics
+  ****************************************************************************
+
+  crl [FLAT] : P => P' if P' := flatten(P) /\ P =/= P' .    
+
+  rl [LINCOM] : new* [(x y) nl] x{N} < v > . P | lin y{N}(z) . Q | R =>
+                 new* [(x y) nl] P | [z := v] Q | R .
+
+  rl [UNCOM] : new* [(x y) nl] x{N} < v > . P | un y{N}(z) . Q | R =>
+                new* [(x y) nl] P | [z := v] Q | un y{N}(z) . Q | R .
+
+  rl [CASE] : new* [(x y) nl] (x{N} << w . P) | (y{N} >> { (w : Q) CH }) | R =>
+              new* [(x y) nl] P | Q | R .
+
+endm

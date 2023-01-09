@@ -1,0 +1,233 @@
+mod APISYNTAX-TYPES is
+ inc CINNI .
+ protecting CHANSET .
+ inc APISYNTAX-SESSION .
+
+ sorts Pretype Type Context TupleTypeContext ChoiceT ChoiceTset .
+ subsort ChoiceT < ChoiceTset .
+
+ vars p : Pretype .
+ var T T' T1 T2 T1' T2' U : Type .
+ vars C C1 C2 C3 : Context .
+ vars L L1 L2 : Chanset .
+ var a : Chan .
+ vars P Q R : Trm .
+ vars x y : Qid .
+ var CH : Choiceset .
+ var CHT CHT' : ChoiceTset .
+ vars q q1 q2 : Qualifier .
+ var Flag v : Value .
+ var TC : TupleTypeContext .
+
+ ****************************************************************
+ ***                 Types Syntax
+ ****************************************************************
+ op ?_._ : Type Type -> Pretype .
+ op !_._ : Type Type -> Pretype .
+ op +{_} : ChoiceTset -> Pretype .
+ op &{_} : ChoiceTset -> Pretype .
+ ops bool end : -> Type .
+ op __ : Qualifier Pretype -> Type .
+ op u [_] _ : Qid Type -> Type .
+ op var : Qid -> Type .
+ ops nil invalid-context : -> Context .
+ op _:_ : Value Type -> Context [ctor] .
+ op _,_ : Context Context -> Context [ctor assoc comm id: nil] .
+
+ op _:_ : Qid Type -> ChoiceT . 
+ op empty : -> ChoiceTset [ctor] .
+ op __ : ChoiceTset ChoiceTset -> ChoiceTset [ctor assoc comm id: empty] .
+ op _in_  : ChoiceT ChoiceTset -> Bool .
+ op _subset_ : ChoiceTset ChoiceTset -> Bool .
+
+ op new[__:_]_  :  Qid Qid Type Trm -> Trm [frozen prec 28] .
+ op ill-typed-process : -> Trm . 
+
+ op recursive : Type -> Bool .
+ op equal : Type Type -> Bool .
+ op equal-aux : ChoiceTset ChoiceTset -> Bool .
+
+ eq recursive(u [x] T) = true .
+ eq recursive(T) = false [owise] .
+ 
+
+ --- it would be possible (maybe) not to check completely both types
+ eq equal(T, T) = true .
+ eq equal(var(x), var(y)) = true .
+ eq equal(q ? T1 . T1', q ? T2 . T2' ) = equal(T1, T2) and equal(T1', T2') .
+ eq equal(q ! T1 . T1', q ! T2 . T2' ) = equal(T1, T2) and equal(T1', T2') .
+ eq equal(q + { CHT }, q + { CHT' }) = equal-aux(CHT, CHT') .
+ eq equal(q & { CHT }, q & { CHT' }) = equal-aux(CHT, CHT') .
+ eq equal(u [x] T1, u [y] T2) = equal(T1, T2) .
+ ceq equal(u [x] T1, T2 ) = true if not recursive(T2) .
+ ceq equal(T1, u [x] T2 ) = true if not recursive(T1) .
+ eq equal(end, lin p) = true .
+ eq equal(lin p, end) = true .
+ eq equal(T1, T2) = false [owise] .
+ eq equal-aux(empty, empty) = true .
+ eq equal-aux((x : T1) CHT, (x : T2) CHT') = equal(T1, T2) and equal-aux(CHT, CHT') .
+ eq equal-aux(CHT, CHT') = false [owise] .
+
+ op replace : Qid Type Type -> Type .
+ eq replace(x, T, bool) = bool .
+ eq replace(x, T, end) = end .
+ eq replace(x, T, var(x)) = T .
+ eq replace(x, T, q ? T1 . T1') = q ? replace(x, T, T1) . replace(x, T, T1') .
+ eq replace(x, T, q ! T1 . T1') = q ! replace(x, T, T1) . replace(x, T, T1') .
+ eq replace(x, T, u [y] T') = u [y] replace(x, T, T') .
+
+ eq replace(x, T, q + { CHT }) = q + { replace-aux(x, T, CHT) } .
+ eq replace(x, T, q & { CHT }) = q & { replace-aux(x, T, CHT) } .
+
+ eq replace(x, T1, T2) = T2 [owise] .
+
+ op replace-aux : Qid Type ChoiceTset -> ChoiceTset .
+ eq replace-aux(x, T, empty) = empty .
+ eq replace-aux(x, T, (y : T') CHT) = (y : replace(x, T, T')) replace-aux(x, T, CHT) .
+
+ --- unfold(T): this operator expands a recursive type T by a step and replaces the type variable ocurrence
+ ---            for the corresponding u [x] T expression
+ op unfold : Type -> Type .
+ eq unfold(u [x] bool) = bool .
+ eq unfold(u [x] end) = end .
+ eq unfold(u [x] q ? T1 . T1') = q ? replace(x, u [x] q ? T1 . T1', T1) . replace(x, u [x] q ? T1 . T1', T1') .
+ eq unfold(u [x] q ! T1 . T1') = q ! replace(x, u [x] q ! T1 . T1', T1) . replace(x, u [x] q ! T1 . T1', T1') .
+ eq unfold(u [x] q + { CHT }) = q + { replace-aux(x, u [x] q + { CHT }, CHT) } .
+ eq unfold(u [x] q & { CHT }) = q & { replace-aux(x, u [x] q & { CHT }, CHT) } .
+ eq unfold(T) = T [owise] .
+
+
+ op ill-typed : -> TupleTypeContext .
+ op [__] : Context Type -> TupleTypeContext .
+ op [__] : Context Chanset -> TupleTypeContext .
+
+ op _in_ : Value Context -> Bool .
+ op _/_ : Context Chanset -> Context .
+ op _+_:_ : Context Value Type -> Context .
+
+ --- context membership
+ eq v in ((v : T), C) = true .
+ eq v in C = false [owise] .
+ 
+ --- context difference
+ eq C / mt = C .
+ eq ((a : T), C) / (a L1) = C / L1 .
+ eq C / L1 = C [owise] .
+ 
+ --- context update
+ ceq C + v : T = (C, (v : T)) if not v in C .
+ ceq (C, (v : T1)) + v : T2 = (C, (v : T2')) if unrestricted(T1) /\ T1' := unfold(T1) /\ T2' := unfold(T2) /\ equal(T1', T2') .
+ eq C + v : T = invalid-context [owise] .
+
+ op dual : Type -> Type .
+ op dual-aux : ChoiceTset -> ChoiceTset .
+ eq dual(end) = end .
+ eq dual(var(x)) = var(x) .
+ eq dual(q ? T1 . T2) = q ! T1 . dual(T2) .
+ eq dual(q ! T1 . T2) = q ? T1 . dual(T2) .
+ eq dual(u [x] T) = u [x] dual(T) .
+ eq dual(q +{ CHT }) = q &{ dual-aux(CHT) } .
+ eq dual(q &{ CHT }) = q +{ dual-aux(CHT) } .
+ eq dual-aux(empty) = empty .
+ eq dual-aux((x : T) CHT) = (x : dual(T)) dual-aux(CHT) .
+
+ ops unrestricted linear : Type -> Bool .
+ ops unrestricted linear : Context -> Bool .
+ 
+ --- rules for types
+ eq unrestricted(bool) = true .
+ eq unrestricted(end) = true .
+ eq unrestricted(un p) = true .
+ eq unrestricted(u [x] T) = unrestricted(T) .
+ eq unrestricted(T) = false [owise] .
+ 
+ --- rules for contexts
+ eq unrestricted(nil) = true .
+ eq unrestricted(a : T) = unrestricted(T) .
+ eq unrestricted((a : T), C) = unrestricted(T) and unrestricted(C) .
+
+ --- rules for types
+ eq linear(T) = true .
+ 
+ --- rules for contexts
+ eq linear(nil) = true .
+ eq linear(a : T) = linear(T) .
+ eq linear((a : T), C) = linear(T) and linear(C) .
+
+ op type-value : Context Value -> TupleTypeContext .
+ eq type-value(C, True) = [C bool] .                                                          --- Rule [A-TRUE]
+ eq type-value(C, False) = [C bool] .                                                         --- Rule [A-FALSE]
+ ceq type-value(((a : T), C), a) = [((a : T), C) unfold(T)] if unrestricted(T) .              --- Rule [A-UNVAR]
+ eq type-value(((a : lin p), C), a) = [C (lin p)] .                                           --- Rule [A-LINVAR]
+ eq type-value(((a : u [x] T), C), a) = type-value(((a : unfold(u [x] T)), C), a) .
+ eq type-value(C, v) = ill-typed [owise] .
+
+ op equal-context : Context Context -> Bool .
+ eq equal-context(nil, nil) = true .
+ eq equal-context(((a : T), C1), ((a : T'), C2)) = equal(T, T') and equal-context(C1, C2) .
+ eq equal-context(C1, C2) = false [owise] .
+
+ --- check-branch(...) : this function verifies if each subprocess in a branching is well-typed
+ op check-branch : Context Chan Choiceset ChoiceTset Qualifier -> TupleTypeContext .
+ op check-branch-aux : Context Chan Choiceset ChoiceTset TupleTypeContext -> Bool .
+ ceq check-branch(C, a, (x : P) CH, (x : T) CHT, q) = [C1 (if q == lin then (L1 a) else L1 fi)]
+                                                   if [C1 L1] := type-term((C + a : T), P) /\ C1 =/= invalid-context /\
+                                                      check-branch-aux(C, a, CH, CHT, [(C1 / a) remove(L1, a)]) .
+ eq check-branch(C, a, CH, CHT, q) = ill-typed [owise] .
+
+ eq check-branch-aux(C, a, empty, empty, TC) = true .
+ ceq check-branch-aux(C, a, (x : P) CH, (x : T) CHT, [C1 L1]) = check-branch-aux(C, a, CH, CHT, [C1 L1])
+                                                    if [C2 L2] := type-term((C + a : T), P) /\ L1 == remove(L2, a) /\ equal-context(C1, (C2 / a)) .
+ eq check-branch-aux(C, a, CH, CHT, TC) = false [owise] .
+
+ --- type-term(Ctx, P) : this functions performs the algorithmic type checking on process P with respect
+ ---                     to a context Ctx. It produces an instance of the sort TupleTypeContext
+ op type-term : Context Trm -> TupleTypeContext .
+ eq type-term(C, nil) = [C mt] .                                                                               --- Rule [A-INACT]
+ ceq type-term(C, P | Q) = [C2 L2] if P =/= nil /\ Q =/= nil /\ [C1 L1] := type-term(C, P) /\                  --- Rule [A-PAR]
+                                      [C2 L2] := type-term(C1 / L1, Q) .
+ ceq type-term(C, new [x y : T] P) =  [(C1 / (x{0} y{0})) remove(remove(L1, x{0}), y{0})] 
+                                if [C1 L1] := type-term((C, (x{0} : T), (y{0} : dual(T))), P) .                --- Rule [A-RES]
+ ceq type-term(C, if v then P else Q fi) = [C2 L]
+                                if [C1 bool] := type-value(C, v) /\ [C2 L] := type-term(C1, P) /\ 
+                                   [C2 L] := type-term(C1, Q) .                                                --- Rule [A-IF]
+ ceq type-term(C, a < v > . P) = [C3 (if q == lin then (L a) else L fi)]
+                                if [C1 (q ! T . U)] := type-value(C, a) /\ [C2 T'] := type-value(C1, v) /\ 
+                                   [C3 L] := type-term((C2 + a : U), P) /\ equal(T, T') /\ 
+                                   C3 =/= invalid-context .                                                    --- Rule [A-OUT]
+ ceq type-term(C, un a(y) . P) = [(C2 / y{0}) mt]
+                                if [C1 (un ? T . U)] := type-value(C, a) /\
+                                   [C2 L] := type-term((C1, (y{0} : T)) + a : U, P) /\
+                                   remove(L, y{0}) == mt /\ C2 =/= invalid-context .                           --- Rule [A-IN]
+ ceq type-term(C, lin a(y) . P) = [(C2 / y{0}) (remove(L, y{0}) (if q == lin then a else mt fi))]
+                                if [C1 (q ? T . U)] := type-value(C, a) /\
+                                   [C2 L] := type-term((C1, (y{0} : T)) + a : U, P) /\ 
+                                   C2 =/= invalid-context  .                                                   --- Rule [A-IN]
+ ceq type-term(C, a >> { CH }) = check-branch(C1, a, CH, CHT, q) if [C1 (q & { CHT })] := type-value(C, a) .   --- Rule [A-BRANCH]
+ ceq type-term(C, a << x . P) =  [C2 (if q == lin then (L1 a) else L1 fi)]
+                                if [C1 (q + { (x : T) CHT })] := type-value(C, a) /\
+                                   [C2 L1] := type-term((C1 + a : T), P) /\ C2 =/= invalid-context .           --- Rule [A-SEL]
+ eq type-term(C, P) = ill-typed [owise] .
+
+
+
+ op well-typed : Trm -> Bool .
+ eq well-typed(P) = (type-term(nil, P) =/= ill-typed) .
+
+ op  erase : Trm -> Trm .
+ op  erase-aux : Choiceset -> Choiceset .
+ eq  erase(nil) = nil .
+ eq  erase(a < v > . P) = a < v > . erase(P) .
+ eq  erase(q a(x) . P) = q a(x) . erase(P) .
+ eq  erase(if v then P else Q fi) = if v then erase(P) else erase(Q) fi .
+ ceq erase(P | Q) = erase(P) | erase(Q) if P =/= nil and Q =/= nil .
+ eq  erase(a >> {CH}) = a >> { erase-aux(CH) } .
+ eq  erase(a << x . P) = a << x . erase(P) .
+ eq  erase-aux(empty) = empty .
+ eq  erase-aux((x : P) CH) = (x : erase(P)) erase-aux(CH) . 
+ eq  erase(new [x y] P) = new [x y] erase(P) .
+ eq  erase(new [x y : T] P) = new [x y] erase(P) . 
+
+ rl [TYPED] : new [x y : T] P => if well-typed(new [x y : T] P) then erase(new [x y] P) else ill-typed-process fi .
+
+endm

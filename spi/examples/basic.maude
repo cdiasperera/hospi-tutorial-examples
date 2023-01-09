@@ -1,0 +1,187 @@
+***(
+  This maude file contains basic examples for the implementation of session-typed pi-calculus. The
+  examples focus on demonstrating the syntax for the basic constructs in session-typed pi-calculus.
+)
+load ../spi-semantics
+load ../spi-syntax
+load ../spi-types
+
+mod TEST is
+	protecting INT .
+	protecting APISEMANTICS-SESSION  .
+	protecting APISYNTAX-SESSION .
+	protecting APISYNTAX-TYPES .
+endm
+
+--- Tranferring values along a linear channel
+
+red type-term (
+  ('z'{0} : bool),
+  new['x' 'y' : lin ! bool . end] (
+    'x'{0}< True > . nil | lin 'y'{0}('z') . nil
+  )
+) .  
+
+--- Example of illegal linear channel usages
+***(
+  This is because there are two processes (inside the restriction) that take
+  in values along the y endpoint. 
+
+  Even though y is expected to take in 2 bool values, it because it is 
+  declared a linear channel, it can only be used in 1 process.
+)
+
+red type-term (
+  nil,
+  new['x' 'y' : lin ! bool . lin ! bool . end] (
+    'x'{0}< True > . nil | lin 'y'{0}('z') . nil | lin 'y'{0}('z') . nil
+  )
+) .
+
+***(
+  Observe that this is well-typed, as opposed to the above process. This is
+  because y is used in a single process.
+)
+
+red type-term (
+  nil,
+  new['x' 'y' : lin ! bool . lin ! bool . end] (
+    'x'{0}< True > . nil | lin 'y'{0}('z') . lin 'y'{0}('z') . nil
+  )
+) .
+
+***(
+  Observe how we can use 'y' in an inner process, in the second process.
+  Again, since this is inside the same process, this is an acceptable use
+  of a linear channel
+)
+red type-term (
+  nil,
+  new['x' 'y' : lin ! bool . lin ! bool . end] (
+    'x'{0}< True > . nil | lin 'y'{0}('z') . (
+      lin 'y'{0}('z') . nil | nil
+    )
+  )
+) .
+
+***(
+  Observe that you cannot change the type of a channel from linear to 
+  unrestricted, even if you "type" it as such. Even though it's
+  a syntactically correct type, the typing rules will prevent such a
+  type from occuring.
+)
+red type-term (
+  nil,
+  new['x' 'y' : lin ! bool . un ! bool . end] (
+    'x'{0}< True > . nil | lin 'y'{0}('z') . nil | lin 'y'{0}('z') . nil
+  )
+) .
+
+--- Transferring values an unrestricted channel
+
+***(
+  Observe that since x,y forms an unrestricted channel, we are more than
+  allowed to put 'y' in two separate processes.
+)
+red type-term (
+  nil,
+  new['x' 'y' : u ['a'] (un ! bool . var('a'))] (
+    'x'{0}< True > . nil | un 'y'{0}('z') . nil | un 'y'{0}('z') . nil
+  )
+) .
+
+***(
+  This is equally true for input endpoints.
+)
+red type-term (
+  nil,
+  new['x' 'y' : u ['a'] (un ! bool . var('a'))] (
+    'x'{0}< True > . nil | un 'y'{0}('z') . nil | 'x'{0}< False > . nil
+  )
+) .
+
+--- Example of scope extrusion
+
+***(
+  Observe that when channel endpoints are restricted, they can't be used
+  in outside processes
+)
+red type-term (
+  nil,
+  (
+    (new['x' 'y' : lin ! bool . end] 'x'{0}< True > . nil) |
+    (lin 'y'{0}('z') . nil)
+  )
+) .
+
+--- Example of Branching
+
+***(
+  Observe the basic branching example below.
+  Note: An important point of syntax is that when specifying the label
+  types / value, via: label : processType / label : process respectively,
+  it's CRITICAL that there is a space between the label and the type / process
+  . Otherwise, Maude WILL say there is a parsing error.
+)
+
+red type-term (
+  (
+    ('z'{0} : lin ! bool . end)
+  ),
+  (
+    new['x' 'y' : lin &{
+      ('l1' : end)
+      ('l2' : end)
+    }] (
+      ('x'{0} >> {
+        ('l1' : 'z'{0}< True > . nil) ('l2' : 'z'{0}< False > . nil)
+      }) | 
+      ('y'{0} << 'l1' . nil)
+    )
+  )
+) .
+
+***(
+  Now suppose that you wish to use the branching channel _after_ the select,
+  instead of the 'z' endpoint. We have to specify the continuation type for
+  'x' after the selection has been made.
+)
+
+red type-term (
+  nil,
+  (
+    new['x' 'y' : lin &{
+      ('l1' : lin ! bool . end)
+      ('l2' : lin ! bool . end)
+    }] (
+      ('x'{0} >> {
+        ('l1' : 'x'{0}< True > . nil) ('l2' : 'x'{0}< False > . nil)
+      }) | 
+      ('y'{0} << 'l1' . nil)
+    )
+  )
+) .
+
+***(
+  Perhaps you use 'x' differently depending on the label input? Write the
+  cont. type apporpriately. Observe that this provides so much flexibility!
+)
+
+red type-term (
+  nil,
+  (
+    new['x' 'y' : lin &{
+      ('l1' : lin ! bool . end)
+      ('l2' : lin ? bool . end)
+    }] (
+      ('x'{0} >> {
+        ('l1' : 'x'{0}< True > . nil) ('l2' : lin 'x'{0}('z') . nil)
+      }) | 
+      ('y'{0} << 'l1' . nil)
+    )
+  )
+) .
+
+***(
+  We've now covered the basic constructs provided by session pi calculus.
+)
