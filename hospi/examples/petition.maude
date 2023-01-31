@@ -1,5 +1,6 @@
 ***(
-  This maude file contains an example of a calculation server
+  This maude file contains an example of a petition server, which takes
+  in how many signees are coming from a client.
 )
 
 load ../chan
@@ -18,6 +19,14 @@ mod PETITION is
   protecting HOSPI-SEMANTICS .
   protecting HOSPI-TYPES .
   
+  ***(
+    Unfortunately, due a technical reason in Maude, it's not possible to
+    add a:
+      subsort String < Value .
+
+    Thus, we have to change the manner in which our petition works.
+  )
+
   var S : Subst .
   var a b c : Chan .
   var P : Trm .
