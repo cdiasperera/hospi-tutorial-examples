@@ -25,6 +25,9 @@ mod PETITION is
       subsort String < Value .
 
     Thus, we have to change the manner in which our petition works.
+
+    The following is a minor extension of hospi to work with operations
+    on natural numbers inside an output
   )
 
   var S : Subst .
@@ -38,7 +41,12 @@ mod PETITION is
   eq S (a < cToN(b) + cToN(c) > . P) = (S a) < (S b) + (S c) > . (S P) .
 
   var N : Nat .
-  
+
+  ***(
+    Generate clients which represent N-i signees if it's the ith generated
+    client.
+  )
+
   op genClients : Nat -> Trm .
   eq genClients(0) = nil .
   eq genClients(s(N)) = 'x'{0}< N > . nil | genClients(N) .
