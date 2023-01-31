@@ -1,6 +1,5 @@
-load spi-syntax
 load spi-semantics
-load model-checker
+
 mod APIPREDS-TYPES is
   protecting APISYNTAX-SESSION .
   protecting APISEMANTICS-SESSION .

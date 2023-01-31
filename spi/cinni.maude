@@ -1,7 +1,9 @@
+  load chan
+  
   ********************************************
   *** Calculus independent equations of CINNI
   ********************************************
-  load chan
+
   fmod CINNI is
     protecting CHAN .
 
@@ -12,6 +14,7 @@
     op `[shiftdown_`] : Qid -> Subst .
     op `[lift__`] : Qid Subst -> Subst .
     op __ : Subst Chan -> Chan .
+    op __ : Subst Value -> Value .
 
     var  n : Nat .
     vars a b : Qid .
@@ -22,12 +25,18 @@
     eq  [ a := v ] a{0} = v .
     eq  [ a := v ] a{s(n)} = a{n} .
     ceq [ a := v ] b{n} = b{n}  if a =/= b .
+    
+    eq  [ a := v ] val(a) = v . --- added
+    eq  [ a := v ] val(b) = val(b) [owise]. --- added
+    
     eq  [ shiftup a ] a{n} = a{s(n)} .
     ceq [ shiftup a ] b{n} = b{n}  if a =/= b .
     eq  [ shiftdown a] b{n} = [a := a{0}] b{n} .
     eq  [ lift a S ] a{0} = a{0} .
     eq  [ lift a S ] a{s(n)} = [ shiftup a ] S a{n} .
     ceq [ lift a S ] b{n} = [ shiftup a ] S b{n} if a =/= b .
+
+    eq  [ lift a S ] val(b) = S val(b) . --- added 
 
     eq  S flag = flag .
   endfm

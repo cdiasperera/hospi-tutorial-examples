@@ -69,7 +69,6 @@ red type-term(
 
 --- Using the lambda
 ***(
-  TODO: Why did we have to go back to lin? 
   Since *'x' is a takes in a linear lambda process, 'z' becomes a linear
   channel, meaning that it must be consume. If the application to 'P' by
   'z' was left out, we would have an invalid type.
@@ -112,12 +111,6 @@ red type-term(
   )
 ) .
 
---- Differentiate between shared / linear / session environments
-
---- Promotion
-***(
-  TODO: After Juan replies
-)
 --- Replicating processes
 ***(
   To achieve replicating processes in hospi, we need to use \mu, which is 

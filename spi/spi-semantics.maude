@@ -1,4 +1,5 @@
 load spi-syntax
+
 mod APISEMANTICS-SESSION is
   inc APISYNTAX-SESSION .
   inc CHANSET .
@@ -12,7 +13,7 @@ mod APISEMANTICS-SESSION is
   vars a b : Chan .
   var  CS : Chanset .
   vars P' Q' P Q R : Trm .
-  var  v : Value .
+  var  v v1 v2 v3 : Value .
   var q : Qualifier .
   var CH : Choiceset .
   var nl nl' : QidSet .
@@ -34,13 +35,13 @@ mod APISEMANTICS-SESSION is
   ***************************************************************************
   eq new[x y] nil = nil .
   ceq P | new[x y] Q = new [x y] (Q | [shiftup x] [shiftup y] P)
-                       if P =/= nil /\ Q =/= nil /\ CS := freenames(P) /\ x{0} in CS and y{0} in CS .
+                       if P =/= nil /\ Q =/= nil /\ CS := freevars(P) /\ x{0} in CS and y{0} in CS .
   ceq P | new[x y] Q = new [x y] (Q | [shiftup x] P)
-                       if P =/= nil /\ Q =/= nil /\ CS := freenames(P) /\ x{0} in CS and not y{0} in CS .
+                       if P =/= nil /\ Q =/= nil /\ CS := freevars(P) /\ x{0} in CS and not y{0} in CS .
   ceq P | new[x y] Q = new [x y] (Q | [shiftup y] P)
-                       if P =/= nil /\ Q =/= nil /\ CS := freenames(P) /\ not x{0} in CS and y{0} in CS .
+                       if P =/= nil /\ Q =/= nil /\ CS := freevars(P) /\ not x{0} in CS and y{0} in CS .
   ceq P | new[x y] Q = new [x y] (Q | P)
-                      if P =/= nil /\ Q =/= nil /\ CS := freenames(P) /\ not x{0} in CS /\ not y{0} in CS .
+                      if P =/= nil /\ Q =/= nil /\ CS := freevars(P) /\ not x{0} in CS /\ not y{0} in CS .
   eq if True then P else Q fi = P .
   eq if False then P else Q fi = Q .
   eq new* [nl] nil = nil .

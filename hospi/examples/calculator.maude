@@ -1,0 +1,105 @@
+***(
+  This maude file contains an example of a calculation server, but
+  to reduce RTT we send a lambda containing the logic behind the calculation.
+)
+load ../chan
+load ../cinni
+load ../chanset
+load ../hospi-syntax
+load ../hospi-semantics
+load ../hospi-types-syntax
+load ../hospi-types-funcs
+load ../hospi-types
+
+
+mod CALC is
+  protecting INT .
+  protecting HOSPI-SYNTAX .
+  protecting HOSPI-SEMANTICS .
+  protecting HOSPI-TYPES .
+  
+  ***(
+    Due to technical reasons, it's not possible to actually extend hospi to
+    Booleans, without defining a custom boolean type (since operation overloading
+    conflicts with using the Custom Bool type). Thus, this server encodes 
+    booleans via Nats, with 1 : True and 0 : False
+
+    There is also an extension to work with operations within outputs
+  )
+  
+  ops C1 C2 : -> Trm .
+  op S : -> Trm .
+  op CC : -> Value .
+  
+  op cToN : Chan -> Nat .
+
+  var S : Subst .
+  var a : Chan .
+  var P : Trm .
+  var n n1 n2 : Nat .
+
+  eq S cToN(a) = S a .
+  eq S (n1 + n2) = (S n1) + (S n2) .
+  eq S n = n [owise] .
+
+  eq S (a < n1 + n2 > . P) = (S a)< (S n1) + (S n2) > . P .
+  eq S (a < n > . P) = (S a) < n > . (S P) .
+
+  ops natOr natAnd natXor : Nat Nat -> Nat .
+  op natNeg : Nat -> Nat .
+
+  eq natOr(1,1) = 1 .
+  eq natOr(1,0) = 1 .
+  eq natOr(0,1) = 1 .
+  eq natOr(0,0) = 0 .
+  
+  eq natAnd(1,1) = 1 .
+  eq natAnd(1,0) = 0 .
+  eq natAnd(0,1) = 0 .
+  eq natAnd(0,0) = 0 .
+
+  eq natXor(1,1) = 0 .
+  eq natXor(1,0) = 1 .
+  eq natXor(0,1) = 1 .
+  eq natXor(0,0) = 0 .
+
+  eq natNeg(1) = 0 .
+  eq natNeg(0) = 1 .
+
+  ***(
+    Clients using the logic server. This is a general pattern for lambdas.
+    The general idea here for using lambdas is that we have one subprocess for
+    obtaining and instantiating the lambda and one subprocess for interacting
+    with the spawned loglca  calculation server server
+  )
+
+  eq C1 = 'g'{0}('CP') . ('CP'{0}{'x'{0}}) | (*('x'{0}) << 'I' . (*('x'{0}) << 'P' . *('x'{0})< 2 > . *('x'{0})< 1 > . nil)) .
+  eq C2 = 'g'{0}('CP') . ('CP'{0}{'z'{0}}) | (*('x'{0}) << 'B' . (*('x'{0}) << 'A' . *('x'{0})< 1 > . *('x'{0})< 0 > . nil)) .
+
+  ***(
+    The logic we send.
+  )
+
+  eq CC = lambda('z') . ('z'{0} >> {
+    ('B' : 'z'{0} >> {
+      ('O' : 'z'{0}('x') . 'z'{0}('y') . 'z'{0}< natOr(cToN('x'{0}) , cToN('y'{0})) > . nil); --- Or
+      ('A' : 'z'{0}('x') . 'z'{0}('y') . 'z'{0}< natAnd(cToN('x'{0}) , cToN('y'{0})) > . nil); --- And
+      ('X' : 'z'{0}('x') . 'z'{0}('y') . 'z'{0}< natXor(cToN('x'{0}) , cToN('y'{0})) > . nil); --- Xor
+      ('N' : 'z'{0}('x') . ''z'{0}< natNeg(cToN('x'{0})) > . nil ) --- Negation
+    });
+    ('I' : 'z'{0} >> {
+      ('P' : 'z'{0}('x') . 'z'{0}('y') . 'z'{0}< cToN('x'{0}) + cToN('y'{0}) > . nil ); ---- +
+      ('M' : 'z'{0}('x') . 'z'{0}('y') . 'z'{0}< cToN('x'{0}) * cToN('y'{0}) > . nil ); ---- *
+      ('S' : 'z'{0}('x') . 'z'{0}('y') . 'z'{0}< cToN('x'{0}) - cToN('y'{0}) > . nil ) --- -
+    })
+  }) .
+  
+  ***(
+    The server offering the logic
+  )
+  eq S = u['X'] . *('g'{0})< CC > . rec('X') .
+endm
+        
+rew new* ['g' 'x' 'y'] (
+    C1 | C2 | S
+) . 

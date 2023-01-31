@@ -1,8 +1,7 @@
+   load cinni
    ********************
    *** Set of channels
    ********************
-
-  load cinni
 
   fmod CHANSET is
     including CINNI .

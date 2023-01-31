@@ -1,5 +1,4 @@
-load spi-preds
-load model-checker
+load spi-preds 
 mod PISESSION-CHECK is
   protecting APIPREDS-TYPES .
   including MODEL-CHECKER .

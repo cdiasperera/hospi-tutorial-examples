@@ -1,0 +1,95 @@
+***(
+  This maude file contains an example of an ATM system.
+
+  It involves a client, an atm and a bank. The bank acts as storage for the
+  ATM, with the ATM acting as the interface for the bank.
+)
+load ../spi-types
+
+
+mod ATM is
+  protecting INT .
+  protecting BOOL-OPS .
+	protecting APISEMANTICS-SESSION  .
+	protecting APISYNTAX-SESSION .
+	protecting APISYNTAX-TYPES .
+  
+  ***(
+    The following are mild extensions upon hospi to work with operations 
+    upon inputs.
+  )
+    
+  subsort Nat < Value .
+
+  op cToN : Chan -> Nat .
+
+  var S : Subst .
+  var a : Chan .
+  var P : Trm .
+  var n n1 n2 : Nat .
+
+  eq S cToN(a) = S a .
+  eq S (n1 + n2) = (S n1) + (S n2) .
+  eq S n = n [owise] .
+
+  eq S (a < n1 + n2 > . P) = (S a)< (S n1) + (S n2) > . P .
+  eq S (a < n > . P) = (S a) < n > . (S P) .
+  
+  ***(
+    C = Client
+    A = ATM
+    B = Bank
+  )
+  ops C A B : -> Trm .
+   
+  ***(
+    Here, we open a bank account, deposit 20 into it, then withdraw 10 and
+    then check the remainder.
+  )
+  eq C = 'y2'{0}< True > . 
+    ('y2'{0} << 'O' . 'y2'{0}< 10 > . 'y2'{0}< True > .
+    ('y2'{0} << 'D' . 'y2'{0}< 20 > . 'y2'{0}< True > . 
+    ('y2'{0} << 'W' . 'y2'{0}< 10 > . 'y2'{0}< True > .
+    ('y2'{0} << 'C' . nil)))) .
+  
+  ***(
+    See spi/examples/petition.maude for the rationale about how state is
+    "persisted".
+    Out bank offers four operations:
+    W: Withdrawl
+    D: Depositing
+    O: Opening an account
+    C: Checking an account
+
+    In each case, we first gather the input data from our client and then
+    get the persisted data data, following by saving it into our storage
+    (after we perform the relevant action).
+  )
+
+  eq A = un 'y1'{0}('z') . (
+    'y1'{0} >> {
+      ('W' : lin 'y1'{0}('r') . lin 'z1'{0}('c') . ('z1'{0} << 'S' . 'z1'{0}< cToN('c'{0} - cToN('r'{0})) > . nil) ) --- Withdraw
+      ('D' : lin 'y1'{0}('d') . lin 'z1'{0}('c') . ('z1'{0} << 'S' . 'z1'{0}< cToN('d'{0} + cToN('c'{0})) > . nil) ) --- Deposit
+      ('O' : lin 'y1'{0}('i') . 'z2'{0}< True > . ('z2'{0} << 'S' . 'z2'{0}< cToN('i'{0}) > . nil))  --- Open account
+      ('C' : lin 'z1'{0}('c') . ('z1'{0} << 'S' . 'z1'{0}< cToN('c'{0}) > . 'y1'{0}< cToN('c'{0}) > . nil) ) --- Check Balance
+    }
+  ) .
+
+  ***(
+    See spi/petition.maude for the rationale about how state is "persisted".
+
+    Bank works the same as "St" in that file.
+  )
+  eq B = un 'z1'{0}('z') . (
+    'z1'{0} >> {
+      ('S' : lin 'z2'{0}('i') . 'z2'{0}< cToN('i'{0}) > . nil ) --- Open
+    }
+  ) .
+
+endm
+
+rew new [ 'y1' 'y2' ] (
+  new ['z1' 'z2'] (
+    C | A | B
+  )
+) .

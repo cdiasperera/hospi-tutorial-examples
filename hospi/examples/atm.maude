@@ -1,0 +1,59 @@
+***(
+  An example for an ATM system, similar to its implementation in
+  spi/examples/atm.maude
+)
+
+load ../chan
+load ../cinni
+load ../chanset
+load ../hospi-syntax
+load ../hospi-semantics
+load ../hospi-types-syntax
+load ../hospi-types-funcs
+load ../hospi-types
+
+mod ATM is
+  protecting INT .
+  protecting HOSPI-SYNTAX .
+  protecting HOSPI-SEMANTICS .
+  protecting HOSPI-TYPES .
+  
+  ops C A B : -> Trm .
+    
+  subsort Nat < Value .
+
+  var S : Subst .
+  var a : Chan .
+  var P : Trm .
+  var n n1 n2 : Nat .
+
+  op cToN : Chan -> Nat .
+
+  eq S n = n . 
+  eq S (cToN(a)) = S a .
+  eq S (n1 + n2) = (S n1) + (S n2) .
+  eq S (a < n > . P) = (S a) < (S n) > . (S P) .
+   
+  eq C =  ('y'{0} << 'O' . 'y'{0}< 10 > .
+    ('y'{0} << 'D' . 'y'{0}< 20 > .
+    ('y'{0} << 'W' . 'y'{0}< 10 > .
+    ('y'{0} << 'C' . nil)))) .
+  
+  eq A = u['X'] . (
+    *('y'{0}) >> {
+      ('W' : *('y'{0})('r') . 'z'{0}('c') . 'z'{0}< 20 > . rec('X') ); --- Withdraw
+      ('D' : *('y'{0})('d') . 'z'{0}('c') . 'z'{0}< 30 > . rec('X') ); --- Deposit
+      ('O' : *('y'{0})('i') . *('z'{0})< 10 > . rec('X'));  --- Open account
+      ('C' : 'z'{0}('c') . 'z'{0}< 20 > . *('y'{0})< 20 > . rec('X'))  --- Check Balance
+    }
+  ) .
+  
+  eq B = u['X'] . *('z'{0})('i') . *('z'{0})< 10 > . rec('X') .
+
+endm
+
+rew new [ 'y' ] (
+  new ['z'] (
+    C | A | B
+  )
+) .

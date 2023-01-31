@@ -1,0 +1,93 @@
+***(
+  This maude file contains an example of a calculation server for boolean
+  calculations.
+
+  We could extend our output to work with booleans but another approach is
+  to encode the truth table for the boolean operations into our process via
+  if then else processes, which we have done, to demonstrate nested 
+  if then else processes.
+)
+load ../spi-types
+
+
+mod CALC is
+  protecting INT .
+  protecting BOOL-OPS .
+	protecting APISEMANTICS-SESSION  .
+	protecting APISYNTAX-SESSION .
+	protecting APISYNTAX-TYPES .
+  
+
+  op C : -> Trm .
+  op S : -> Trm .
+  
+  ***(
+    A common pattern regarding recursive processes involve guarding your
+    recursive process with an input guard where the bound variable for that 
+    guard does nothing. Then, to access the recursive process, we have to first
+    "activate" via the guard.
+    
+    Then the spawned process is for our input and our server is still operational
+    to other clients.
+  )
+  eq C = 'g1'{0}< True > . ('c1'{0} << 'B' . 'c1'{0} << 'O' . 'c1'{0}< True > . 'c1'{0}< True > . nil) .
+
+  ***(
+    We have operations for Or, And, Xor and Negation.
+  )
+  eq S = lin 'g2'{0}('z') . ('c2'{0} >> {
+    ('B' : 'c2'{0} >> {
+      ('O' : lin 'c2'{0}('x') . lin 'c2'{0}('y') . (
+        if val('x') then (
+          'c2'{0}< True > . nil
+        )
+        else (
+          if val('y') then 'c2'{0}< True > . nil
+          else 'c2'{0}< False > . nil
+          fi
+        )
+        fi
+      ))
+      ('A' : lin 'c2'{0}('x') . lin 'c2'{0}('y') . (
+        if val('x') then (
+          if val('x') then 'c2'{0}< True > . nil
+          else 'c2'{0}< False > . nil
+          fi
+        )
+        else (
+          'c2'{0}< False > . nil
+        )
+        fi
+      ))
+      ('X' : lin 'c2'{0}('x') . lin 'c2'{0}('y') . (
+        if val('x') then (
+          if val('y') then 'c2'{0}< False > . nil
+          else 'c2'{0}< True > . nil
+          fi
+        )
+        else (
+          if val('y') then 'c2'{0}< True > . nil
+          else 'c2'{0}< False > . nil
+          fi
+        )
+        fi
+      ))
+      ('N': lin 'c2'{0}('x') . lin 'c2'{0}('y') . (
+        if val('x') then (
+          'c2'{0}< False > . nil
+        ) else (
+          'c2'{0}< True > . nil
+        )
+      )
+
+      )
+    })
+  }) .
+endm
+        
+rew new ['g1' 'g2'] (
+  new ['c1' 'c2']
+   (
+    C | S
+   )
+) .

@@ -1,0 +1,55 @@
+***(
+  This maude file contains an example of a calculation server
+)
+
+load ../chan
+load ../cinni
+load ../chanset
+load ../hospi-syntax
+load ../hospi-semantics
+load ../hospi-types-syntax
+load ../hospi-types-funcs
+load ../hospi-types
+
+
+mod PETITION is
+  protecting INT .
+  protecting HOSPI-SYNTAX .
+  protecting HOSPI-SEMANTICS .
+  protecting HOSPI-TYPES .
+  
+  var S : Subst .
+  var a b c : Chan .
+  var P : Trm .
+  var n n1 n2 n3 : Nat .
+
+  op cToN : Chan -> Nat .
+
+  eq S n = n .    
+  eq S (a < cToN(b) + cToN(c) > . P) = (S a) < (S b) + (S c) > . (S P) .
+
+  var N : Nat .
+  
+  op genClients : Nat -> Trm .
+  eq genClients(0) = nil .
+  eq genClients(s(N)) = 'x'{0}< N > . nil | genClients(N) .
+
+  ops I PS St : -> Trm .
+
+  eq I = 'st'{0}< 0 > . nil .
+
+  eq PS = u['X'] . 
+    *('x'{0})('s') . 'st'{0}('c') . 'st'{0}< cToN('s'{0}) + cToN('c'{0}) >
+   . rec('X') .
+
+  eq St = u['X'] . 
+    *('st'{0})('i') . *('st'{0})< 'i'{0} >
+   . rec('X') .
+
+endm
+
+red new ['x'] (
+  new ['st'] (
+    genClients(1) | PS | I | St
+  )
+) .

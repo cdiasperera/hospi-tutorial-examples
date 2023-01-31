@@ -1,0 +1,78 @@
+***(
+  This maude file contains an example of a petition system. The server holds
+  petition signees.
+)
+load ../spi-types
+
+
+mod PETITION is
+  protecting INT .
+  protecting BOOL-OPS .
+	protecting APISEMANTICS-SESSION  .
+	protecting APISYNTAX-SESSION .
+	protecting APISYNTAX-TYPES .
+  
+  subsort String < Value .
+
+  ***(
+    This is a mild extension of spi syntax to work with strings as values.
+  )
+
+  var S : Subst .
+  var a b c : Chan .
+  var P : Trm .
+  var s s1 s2 s3 : String .
+
+  op cToS : Chan -> String .
+
+  eq S s = s .    
+  eq S (a < cToS(b) + s2 + cToS(c)> . P) = (S a) < (S b) + s2 + (S c)> . (S P) .
+  eq S (a < s > . P) = (S a) < s > . (S P).
+  
+  ops PS St : ->  Trm .
+  
+  var N : Nat .
+
+  ***(
+    This is a helper function to generate N clients, with unique names.
+  )
+
+  op genClients : Nat -> Trm .
+  eq genClients(0) = nil .
+  eq genClients(s(N)) = 'x1'{0}< True > . ('x1'{0} << 'S' . 'x1'{0}< "C" + char(N + 65) > . nil) | genClients(N) .
+
+
+  ***(
+    Our petition server first initializes the storage to "". Then, it recursively allows the client to
+    send in their signature (via 's') which it appends to the existing petition which it gets from storage
+    (via 'c'). Then it writes to storage again.
+  )
+
+  eq PS = 'st1'{0}< True > . 'st1'{0}< "" > . un 'x2'{0}('z') . (
+    'x2'{0} >> {
+      ('S' : lin 'x2'{0}('s') . lin 'st1'{0}('c') . 'st1'{0}< True > . 'st1'{0}< cToS('c'{0}) + " , " + cToS('s'{0}) > . nil)
+    }
+  ) .
+
+  ***(
+    Since there is no native support for persistent state between processes,
+    it's difficult to persist state in a recursive process. When a recursive
+    process is spawns a new process, the data received in the new process cannot
+    be directly communicated to the recursive process.
+
+    Thus, we have an intermediary storage component, which persists state by
+    always offering what it receives immediately. Thus, it's saved till the
+    process using storage requests it again. Then it is lost (though the storer)
+    can still save it again.
+  )
+  eq St = un 'st2'{0}('z') . (
+    lin 'st2'{0}('i') . 'st2'{0}< 'i'{0} > . nil 
+  ) .
+
+endm
+
+red new ['x1' 'x2'] (
+  new ['st1' 'st2'] (
+    genClients(2) | PS | St
+  )
+) .

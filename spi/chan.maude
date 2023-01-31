@@ -11,11 +11,12 @@
     
     op _`{_`}  :  Qid Nat -> Chan [ctor prec 1] .
     op flag : -> Chan .
+    op val : Qid -> Value [ctor] .
 
-    op swap  :  Qid Nat Chan -> Chan .
+    op swap : Qid Nat Chan -> Chan .
 
     vars n m :  Nat .
-    vars a b  :  Qid .
+    vars a b :  Qid .
 
     eq  swap(a , m , b{n}) = if a{m} == b{n} then a{s(m)}
 			     else if a{s(m)} == b{n} then a{m} 

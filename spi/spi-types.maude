@@ -1,3 +1,5 @@
+load spi-semantics
+
 mod APISYNTAX-TYPES is
  inc CINNI .
  protecting CHANSET .
