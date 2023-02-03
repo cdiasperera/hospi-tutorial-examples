@@ -35,6 +35,7 @@ mod CALC is
   ***(
     We have operations for Or, And, Xor and Negation.
   )
+
   eq S = lin 'g2'{0}('z') . ('c2'{0} >> {
     ('B' : 'c2'{0} >> {
       ('O' : lin 'c2'{0}('x') . lin 'c2'{0}('y') . (
@@ -72,15 +73,14 @@ mod CALC is
         )
         fi
       ))
-      ('N': lin 'c2'{0}('x') . lin 'c2'{0}('y') . (
+      ('N' : lin 'c2'{0}('x') . lin 'c2'{0}('y') . (
         if val('x') then (
           'c2'{0}< False > . nil
         ) else (
           'c2'{0}< True > . nil
         )
-      )
-
-      )
+        fi
+      ))
     })
   }) .
 endm

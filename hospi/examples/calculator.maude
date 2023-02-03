@@ -24,7 +24,7 @@ mod CALC is
     conflicts with using the Custom Bool type). Thus, this server encodes 
     booleans via Nats, with 1 : True and 0 : False
 
-    There is also an extension to work with operations within outputs
+    There is also an extension to work with operations within outputs.
   )
   
   ops C1 C2 : -> Trm .
@@ -100,6 +100,6 @@ mod CALC is
   eq S = u['X'] . *('g'{0})< CC > . rec('X') .
 endm
         
-rew new* ['g' 'x' 'y'] (
+rew new* ['g' 'x'] (
     C1 | C2 | S
 ) . 
